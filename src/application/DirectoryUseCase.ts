@@ -3,19 +3,19 @@ import * as path from 'path';
 import { createDirectory, type Directory } from '../domain/model/Directory.js';
 import type { DirectoryRepository } from '../domain/repository/DirectoryRepository.js';
 import type { IndexRepository } from '../domain/repository/IndexRepository.js';
-import type { IndexingService, IndexingResult } from './IndexingService.js';
+import type { FileChangeQueue } from '../services/FileChangeQueue.js';
 import logger from '../infrastructure/logger/index.js';
 
 export interface AddDirectoryResult {
     directory: Directory;
-    indexingResult: IndexingResult;
+    queuedCount: number;
 }
 
 export class DirectoryUseCase {
     constructor(
         private directoryRepo: DirectoryRepository,
         private indexRepo: IndexRepository,
-        private indexingService: IndexingService
+        private fileChangeQueue: FileChangeQueue
     ) {}
 
     async add(dirPath: string): Promise<AddDirectoryResult> {
@@ -38,10 +38,10 @@ export class DirectoryUseCase {
         // Check if already registered
         const existing = await this.directoryRepo.findByPath(absolutePath);
         if (existing) {
-            logger.info(`Directory already registered, re-indexing: ${absolutePath}`);
-            // Re-index existing directory
-            const indexingResult = await this.indexingService.indexDirectory(absolutePath);
-            return { directory: existing, indexingResult };
+            logger.info(`Directory already registered, re-queuing: ${absolutePath}`);
+            // Queue files for re-indexing
+            const queuedCount = await this.fileChangeQueue.enqueueDirectory(absolutePath);
+            return { directory: existing, queuedCount };
         }
 
         // Create new directory entry
@@ -50,15 +50,12 @@ export class DirectoryUseCase {
 
         logger.info(`Directory added: ${absolutePath}`);
 
-        // Index the directory
-        const indexingResult = await this.indexingService.indexDirectory(absolutePath);
-
-        // Update directory with file count
-        const updatedDir = await this.directoryRepo.findByPath(absolutePath);
+        // Queue all files from the directory for indexing (async)
+        const queuedCount = await this.fileChangeQueue.enqueueDirectory(absolutePath);
 
         return {
-            directory: updatedDir || directory,
-            indexingResult
+            directory,
+            queuedCount
         };
     }
 

@@ -56,15 +56,22 @@ export function formatStatus(status: StatusResponse, json: boolean): string {
         return JSON.stringify(status, null, 2);
     }
 
-    return [
+    const lines = [
         `Similo Server Status`,
         `--------------------`,
         `Status: ${status.status}`,
         `Port: ${status.port}`,
         `Directories: ${status.directories}`,
-        `Indexed files: ${status.indexedFiles}`,
-        `Ollama model: ${status.ollamaModel}`
-    ].join('\n');
+        `Indexed files: ${status.indexedFiles}`
+    ];
+
+    if (status.queuedFiles > 0) {
+        lines.push(`Queued files: ${status.queuedFiles} (indexing in progress)`);
+    }
+
+    lines.push(`Ollama model: ${status.ollamaModel}`);
+
+    return lines.join('\n');
 }
 
 export function formatError(message: string): string {

@@ -24,12 +24,11 @@ export const addCommand = new Command('add')
             process.exit(1);
         }
 
-        const { directory: dir, indexing } = response.data;
+        const { directory: dir, queuedCount } = response.data;
 
         console.log(formatSuccess([
             `Directory added: ${dir.path}`,
-            `Indexed: ${indexing.indexed} files`,
-            indexing.skipped > 0 ? `Skipped: ${indexing.skipped} files` : '',
-            indexing.errors > 0 ? `Errors: ${indexing.errors}` : ''
-        ].filter(Boolean).join('\n')));
+            `Queued: ${queuedCount} files for indexing`,
+            'Indexing will continue in the background.'
+        ].join('\n')));
     });

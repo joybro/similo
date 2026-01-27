@@ -11,6 +11,7 @@ import { ProcessManager } from '../infrastructure/process/ProcessManager.js';
 import { IndexingService } from '../application/IndexingService.js';
 import { SearchUseCase } from '../application/SearchUseCase.js';
 import { DirectoryUseCase } from '../application/DirectoryUseCase.js';
+import { FileChangeQueue } from '../services/FileChangeQueue.js';
 import logger from '../infrastructure/logger/index.js';
 
 interface ServerContext {
@@ -18,16 +19,19 @@ interface ServerContext {
     indexRepo: SQLiteIndexRepository;
     directoryRepo: SQLiteDirectoryRepository;
     embeddingProvider: OllamaEmbeddingProvider;
+    fileReader: FileReader;
     indexingService: IndexingService;
     searchUseCase: SearchUseCase;
     directoryUseCase: DirectoryUseCase;
     fileWatcher: FileWatcher;
+    fileChangeQueue: FileChangeQueue;
     processManager: ProcessManager;
 }
 
 let context: ServerContext | null = null;
 let server: http.Server | null = null;
 let isShuttingDown = false;
+let indexingLoopTimer: NodeJS.Timeout | null = null;
 
 async function initContext(): Promise<ServerContext> {
     ensureSimiloDir();
@@ -49,20 +53,32 @@ async function initContext(): Promise<ServerContext> {
         fileReader
     );
     const searchUseCase = new SearchUseCase(indexRepo, embeddingProvider);
-    const directoryUseCase = new DirectoryUseCase(directoryRepo, indexRepo, indexingService);
+    const fileChangeQueue = new FileChangeQueue(indexRepo, fileReader);
+    const directoryUseCase = new DirectoryUseCase(
+        directoryRepo,
+        indexRepo,
+        fileChangeQueue
+    );
     const fileWatcher = new FileWatcher(config);
     const processManager = new ProcessManager();
 
-    // Set up file watcher handlers
-    fileWatcher.onFileChange(async (path, eventType) => {
-        try {
-            if (eventType === 'unlink') {
-                await indexingService.removeFile(path);
-            } else {
-                await indexingService.indexFile(path);
-            }
-        } catch (error) {
-            logger.error(`Error handling file event: ${path}`, error);
+    // Set up file watcher to enqueue changes (not process directly)
+    fileWatcher.onFileChange((path, eventType) => {
+        if (eventType === 'unlink') {
+            fileChangeQueue.enqueue({ path, reason: 'deleted' });
+        } else {
+            // For add/change, we need to get mtime
+            fileReader.read(path).then(content => {
+                if (content) {
+                    fileChangeQueue.enqueue({
+                        path,
+                        reason: eventType === 'add' ? 'new' : 'modified',
+                        mtime: content.modifiedAt.getTime()
+                    });
+                }
+            }).catch(error => {
+                logger.error(`Error reading file for queue: ${path}`, error);
+            });
         }
     });
 
@@ -77,12 +93,56 @@ async function initContext(): Promise<ServerContext> {
         indexRepo,
         directoryRepo,
         embeddingProvider,
+        fileReader,
         indexingService,
         searchUseCase,
         directoryUseCase,
         fileWatcher,
+        fileChangeQueue,
         processManager
     };
+}
+
+/**
+ * Background indexing loop - processes one file at a time from the queue.
+ */
+function startIndexingLoop(ctx: ServerContext): void {
+    const processNext = async () => {
+        if (isShuttingDown) return;
+
+        const changes = ctx.fileChangeQueue.poll(1);
+
+        if (changes.length === 0) {
+            // Queue is empty, wait before checking again
+            indexingLoopTimer = setTimeout(processNext, 1000);
+            return;
+        }
+
+        const change = changes[0]!;
+        logger.info(`Processing: ${change.path} (${change.reason})`);
+
+        try {
+            if (change.reason === 'deleted') {
+                await ctx.indexingService.removeFile(change.path);
+            } else {
+                await ctx.indexingService.indexFile(change.path);
+            }
+        } catch (error) {
+            logger.error(`Error processing ${change.path}:`, error);
+        }
+
+        // Process next immediately (no delay between items)
+        setImmediate(processNext);
+    };
+
+    processNext();
+}
+
+function stopIndexingLoop(): void {
+    if (indexingLoopTimer) {
+        clearTimeout(indexingLoopTimer);
+        indexingLoopTimer = null;
+    }
 }
 
 async function handleRequest(
@@ -109,12 +169,14 @@ async function handleRequest(
         if (req.method === 'GET' && url.pathname === '/status') {
             const directories = await ctx.directoryRepo.findAll();
             const totalFiles = await ctx.indexRepo.count();
+            const queuedFiles = ctx.fileChangeQueue.getCount();
 
             sendJson(res, 200, {
                 status: 'running',
                 port: ctx.config.server.port,
                 directories: directories.length,
                 indexedFiles: totalFiles,
+                queuedFiles,
                 ollamaModel: ctx.config.ollama.model
             });
             return;
@@ -167,7 +229,7 @@ async function handleRequest(
 
             sendJson(res, 201, {
                 directory: result.directory,
-                indexing: result.indexingResult
+                queuedCount: result.queuedCount
             });
             return;
         }
@@ -220,6 +282,8 @@ async function shutdown(): Promise<void> {
 
     logger.info('Shutting down server...');
 
+    stopIndexingLoop();
+
     if (context) {
         context.fileWatcher.stop();
         await context.processManager.clearPid();
@@ -252,11 +316,16 @@ async function main(): Promise<void> {
             // Write PID file
             await context!.processManager.writePid(process.pid);
 
-            // Start file watcher
+            // Initialize the file change queue with existing directories
+            const directories = await context!.directoryRepo.findAll();
+            const dirPaths = directories.map(d => d.path);
+            await context!.fileChangeQueue.initialize(dirPaths);
+
+            // Start file watcher for new changes
             context!.fileWatcher.start();
 
-            // Re-index stale files on startup
-            await context!.indexingService.reindexStaleFiles();
+            // Start the background indexing loop
+            startIndexingLoop(context!);
         });
 
         // Graceful shutdown handlers

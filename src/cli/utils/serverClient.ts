@@ -85,6 +85,7 @@ export interface StatusResponse {
     port: number;
     directories: number;
     indexedFiles: number;
+    queuedFiles: number;
     ollamaModel: string;
 }
 
@@ -110,11 +111,7 @@ export interface DirectoryInfo {
 
 export interface AddDirectoryResponse {
     directory: DirectoryInfo;
-    indexing: {
-        indexed: number;
-        skipped: number;
-        errors: number;
-    };
+    queuedCount: number;
 }
 
 export interface ListDirectoriesResponse {
