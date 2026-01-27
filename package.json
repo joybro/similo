@@ -1,0 +1,52 @@
+{
+    "name": "similo",
+    "version": "0.1.0",
+    "description": "Local semantic search for files and documents",
+    "type": "module",
+    "main": "dist/cli/index.js",
+    "bin": {
+        "similo": "dist/cli/index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx src/cli/index.ts",
+        "start": "node dist/cli/index.js",
+        "serve": "tsx src/server/index.ts",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "lint": "eslint src/",
+        "lint:fix": "eslint src/ --fix"
+    },
+    "keywords": [
+        "semantic-search",
+        "embeddings",
+        "ollama",
+        "sqlite",
+        "cli"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "better-sqlite3": "^11.0.0",
+        "chokidar": "^3.6.0",
+        "commander": "^12.0.0",
+        "loglevel": "^1.9.0",
+        "micromatch": "^4.0.5",
+        "ollama": "^0.5.0",
+        "sqlite-vec": "^0.1.6"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.0.0",
+        "@types/better-sqlite3": "^7.6.0",
+        "@types/micromatch": "^4.0.0",
+        "@types/node": "^20.0.0",
+        "eslint": "^9.0.0",
+        "tsx": "^4.0.0",
+        "typescript": "^5.4.0",
+        "typescript-eslint": "^8.0.0",
+        "vitest": "^1.6.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
