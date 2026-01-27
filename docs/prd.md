@@ -259,17 +259,18 @@ class TransformersEmbeddingProvider implements EmbeddingProvider { } // v0.9
 
 ### In Scope
 
-- [ ] CLI: `similo add <dir>`, `similo search <query>`, `similo list`, `similo remove`
-- [ ] MCP 서버 (Claude Code 연동)
-- [ ] 서버 자동 시작 (CLI 명령 실행 시)
-- [ ] 파일 watch 및 자동 재인덱싱
-- [ ] Ollama 연동: 임베딩 생성
-- [ ] SQLite 벡터 저장소
-- [ ] 지원 파일: `.md`, `.txt`
+- [x] CLI: `similo add <dir>`, `similo search <query>`, `similo list`, `similo remove`
+- [x] 서버 자동 시작 (CLI 명령 실행 시)
+- [x] 파일 watch 및 자동 재인덱싱
+- [x] Ollama 연동: 임베딩 생성
+- [x] SQLite 벡터 저장소
+- [x] 지원 파일: `.md`, `.txt`
+- [x] 비동기 인덱싱 큐 (백그라운드 처리)
 
 ### Out of Scope (v0.1)
 
-- REST API
+- MCP 서버 (v0.1.5에서 구현 예정)
+- REST API (내부적으로는 사용, 외부 공개 API는 v0.2)
 - macOS 메뉴바 앱
 - PDF 지원
 - 인증/보안
@@ -278,18 +279,22 @@ class TransformersEmbeddingProvider implements EmbeddingProvider { } // v0.9
 
 ## Roadmap
 
-### v0.1 — Foundation + Claude Code
+### v0.1 — Foundation ✅
 
-- CLI 기본 기능 (`add`, `search`, `list`, `remove`)
-- MCP 서버 (Claude Code 연동)
+- CLI 기본 기능 (`add`, `search`, `list`, `remove`, `status`, `stop`, `clear`)
 - 서버 자동 시작
 - 파일 watch 및 자동 재인덱싱
-- Ollama 임베딩 연동
-- SQLite 벡터 저장소
+- Ollama 임베딩 연동 (nomic-embed-text)
+- SQLite + sqlite-vec 벡터 저장소
+- 비동기 인덱싱 큐 (백그라운드 처리)
+
+### v0.1.5 — MCP Server
+
+- MCP 서버 (Claude Code 연동)
 
 ### v0.2 — REST API
 
-- REST API 엔드포인트
+- REST API 엔드포인트 공개
 - 외부 애플리케이션 연동 지원
 
 ### v0.3 — Extended File Support
