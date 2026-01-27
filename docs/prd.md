@@ -73,6 +73,22 @@ similo clear                     # 전체 인덱스 및 등록 디렉토리 초�
 - `similo search`, `similo add`, `similo list` 등 서버가 필요한 명령은 서버가 없으면 자동 시작
 - 서버는 등록된 모든 디렉토리를 watch하며, 파일 변경 시 자동으로 재인덱싱
 
+**AI 에이전트용 출력 형식:**
+
+CLI는 사람뿐 아니라 AI 에이전트(Claude Code 서브에이전트 등)도 사용한다. 백그라운드 서브에이전트에서는 MCP를 사용할 수 없으므로 CLI가 유일한 접근 경로다.
+
+- 모든 데이터 반환 명령에 `--json` 옵션 제공
+- JSON 출력은 REST API 응답 형식과 동일하게 유지
+- 에러도 JSON 형식으로 출력 (`{"error": "message"}`)
+
+```bash
+similo search "인증 설계" --json
+# REST API /search 응답과 동일한 JSON 출력
+
+similo list --json
+similo status --json
+```
+
 ### 3. REST API
 
 다른 애플리케이션에서 Similo를 활용할 수 있게 한다.
