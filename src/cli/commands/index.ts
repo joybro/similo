@@ -6,3 +6,4 @@ export { serveCommand } from './serve.js';
 export { statusCommand } from './status.js';
 export { stopCommand } from './stop.js';
 export { clearCommand } from './clear.js';
+export { mcpCommand } from './mcp.js';

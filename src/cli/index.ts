@@ -9,7 +9,8 @@ import {
     serveCommand,
     statusCommand,
     stopCommand,
-    clearCommand
+    clearCommand,
+    mcpCommand
 } from './commands/index.js';
 
 const program = new Command();
@@ -27,5 +28,6 @@ program.addCommand(serveCommand);
 program.addCommand(statusCommand);
 program.addCommand(stopCommand);
 program.addCommand(clearCommand);
+program.addCommand(mcpCommand);
 
 program.parse();

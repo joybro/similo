@@ -78,6 +78,55 @@ similo stop
 similo clear
 ```
 
+## Claude Code Integration (MCP)
+
+Similo can be used as an MCP server, allowing Claude Code to perform semantic search on your indexed documents.
+
+### Setup
+
+Add to your Claude Code MCP settings (`~/.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "similo": {
+      "command": "node",
+      "args": ["/path/to/similo/dist/mcp/index.js"]
+    }
+  }
+}
+```
+
+Or using tsx for development:
+
+```json
+{
+  "mcpServers": {
+    "similo": {
+      "command": "npx",
+      "args": ["tsx", "/path/to/similo/src/mcp/index.ts"]
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `similo_search` | Search indexed documents using semantic similarity |
+| `similo_status` | Get server status and index statistics |
+| `similo_list_directories` | List all registered directories |
+| `similo_add_directory` | Register a directory for indexing |
+| `similo_remove_directory` | Unregister a directory and remove its index |
+
+### Manual testing
+
+```bash
+# Start MCP server directly (for testing)
+similo mcp
+```
+
 ## Configuration
 
 Config file: `~/.similo/config.json`
