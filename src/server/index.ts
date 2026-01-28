@@ -111,7 +111,9 @@ async function initContext(): Promise<ServerContext> {
     if (!connectionResult.success) {
         if (connectionResult.error === 'model_not_found') {
             throw new Error(
-                `Model '${config.ollama.model}' not found. Run: ollama pull ${config.ollama.model}`
+                `Model '${config.ollama.model}' not found.\n` +
+                `  - Run: ollama pull ${config.ollama.model}\n` +
+                `  - Or change model in ~/.similo/config.json`
             );
         }
         throw new Error(

@@ -12,6 +12,19 @@ import {
     clearCommand,
     mcpCommand
 } from './commands/index.js';
+import { formatError } from './utils/output.js';
+
+// Global error handler - show clean error message without stack trace
+process.on('uncaughtException', (error) => {
+    console.error(formatError(error.message));
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+    const message = reason instanceof Error ? reason.message : String(reason);
+    console.error(formatError(message));
+    process.exit(1);
+});
 
 const program = new Command();
 
