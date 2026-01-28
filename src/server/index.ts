@@ -1,7 +1,14 @@
 import * as http from 'http';
 import { URL } from 'url';
 import { loadConfig, ensureSimiloDir } from '../domain/model/Config.js';
-import { initDatabase, closeDatabase } from '../infrastructure/database/DatabaseManager.js';
+import {
+    initDatabase,
+    closeDatabase,
+    createVecIndex,
+    getEmbeddingMetadata,
+    setEmbeddingMetadata,
+    resetForModelChange
+} from '../infrastructure/database/DatabaseManager.js';
 import { SQLiteIndexRepository } from '../adapter/sqlite/SQLiteIndexRepository.js';
 import { SQLiteDirectoryRepository } from '../adapter/sqlite/SQLiteDirectoryRepository.js';
 import { OllamaEmbeddingProvider } from '../adapter/ollama/OllamaEmbeddingProvider.js';
@@ -33,18 +40,91 @@ let server: http.Server | null = null;
 let isShuttingDown = false;
 let indexingLoopTimer: NodeJS.Timeout | null = null;
 
+async function handleEmbeddingModelSetup(
+    configModelName: string,
+    actualDimensions: number
+): Promise<void> {
+    const existingMetadata = getEmbeddingMetadata();
+
+    if (!existingMetadata) {
+        // Case 1: First time setup
+        logger.info(`First time setup: creating vec_index with ${actualDimensions} dimensions`);
+        createVecIndex(actualDimensions);
+        setEmbeddingMetadata({
+            modelName: configModelName,
+            dimensions: actualDimensions,
+            createdAt: new Date()
+        });
+        return;
+    }
+
+    if (existingMetadata.modelName === configModelName) {
+        // Case 2: Same model
+        if (existingMetadata.dimensions !== actualDimensions) {
+            // Dimension mismatch - shouldn't happen but handle it
+            logger.warn(
+                `Dimension mismatch for model ${configModelName}: ` +
+                `stored=${existingMetadata.dimensions}, actual=${actualDimensions}. ` +
+                `Resetting database.`
+            );
+            resetForModelChange(actualDimensions);
+            setEmbeddingMetadata({
+                modelName: configModelName,
+                dimensions: actualDimensions,
+                createdAt: new Date()
+            });
+        } else {
+            // Everything matches - normal startup
+            logger.debug(`Embedding model unchanged: ${configModelName}`);
+            // Ensure vec_index exists (in case of partial initialization)
+            createVecIndex(actualDimensions);
+        }
+        return;
+    }
+
+    // Case 3: Model changed
+    logger.warn(
+        `Embedding model changed: ${existingMetadata.modelName} -> ${configModelName}. ` +
+        `Clearing existing embeddings. Re-indexing will be required.`
+    );
+    resetForModelChange(actualDimensions);
+    setEmbeddingMetadata({
+        modelName: configModelName,
+        dimensions: actualDimensions,
+        createdAt: new Date()
+    });
+}
+
 async function initContext(): Promise<ServerContext> {
     ensureSimiloDir();
     const config = loadConfig();
 
-    initDatabase();
-
-    const indexRepo = new SQLiteIndexRepository();
-    const directoryRepo = new SQLiteDirectoryRepository();
+    // Create embedding provider FIRST to detect dimensions
     const embeddingProvider = new OllamaEmbeddingProvider(
         config.ollama.host,
         config.ollama.model
     );
+
+    // Probe the model to get actual dimensions
+    logger.info(`Probing embedding model: ${config.ollama.model}`);
+    const connectionOk = await embeddingProvider.testConnection();
+    if (!connectionOk) {
+        throw new Error(
+            `Cannot connect to Ollama or model '${config.ollama.model}' not available. ` +
+            `Make sure Ollama is running and the model is pulled.`
+        );
+    }
+    const actualDimensions = embeddingProvider.getDimensions();
+    logger.info(`Model ${config.ollama.model} has ${actualDimensions} dimensions`);
+
+    // Initialize database (creates basic schema, no vec_index yet)
+    initDatabase();
+
+    // Handle embedding model setup (creates vec_index, handles model changes)
+    await handleEmbeddingModelSetup(config.ollama.model, actualDimensions);
+
+    const indexRepo = new SQLiteIndexRepository();
+    const directoryRepo = new SQLiteDirectoryRepository();
     const fileReader = new FileReader(config);
     const indexingService = new IndexingService(
         indexRepo,

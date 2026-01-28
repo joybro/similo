@@ -60,11 +60,15 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
 
     async testConnection(): Promise<boolean> {
         try {
-            await this.client.embeddings({
+            const response = await this.client.embeddings({
                 model: this.model,
                 prompt: 'test'
             });
-            logger.debug('Ollama connection test successful');
+            // Update dimensions from actual response
+            if (response.embedding && response.embedding.length > 0) {
+                this.dimensions = response.embedding.length;
+                logger.debug(`Ollama connection test successful, dimensions=${this.dimensions}`);
+            }
             return true;
         } catch (error) {
             logger.warn('Ollama connection test failed', error);
