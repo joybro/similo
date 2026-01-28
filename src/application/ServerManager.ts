@@ -133,7 +133,35 @@ export class ServerManager {
             }
         }
 
-        throw new Error(`Server failed to start within ${maxRetries * intervalMs}ms`);
+        // Server failed to start - try to get error from log file
+        const errorMessage = this.getLastErrorFromLog();
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+        throw new Error(`Server failed to start. Check logs: ${getLogPath()}`);
+    }
+
+    private getLastErrorFromLog(): string | null {
+        try {
+            const logPath = getLogPath();
+            const content = fs.readFileSync(logPath, 'utf-8');
+            const lines = content.trim().split('\n');
+
+            // Search from end for [ERROR] line
+            for (let i = lines.length - 1; i >= 0 && i >= lines.length - 20; i--) {
+                const line = lines[i];
+                if (line && line.includes('[ERROR]')) {
+                    // Extract message after [ERROR]
+                    const match = line.match(/\[ERROR\]\s*(.+)/);
+                    if (match && match[1]) {
+                        return match[1].trim();
+                    }
+                }
+            }
+            return null;
+        } catch {
+            return null;
+        }
     }
 
     private async waitForExit(pid: number, maxRetries: number, intervalMs: number): Promise<void> {

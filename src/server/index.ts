@@ -416,7 +416,8 @@ async function main(): Promise<void> {
         process.on('SIGINT', shutdown);
         process.on('SIGTERM', shutdown);
     } catch (error) {
-        logger.error('Failed to start server', error);
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(message);
         process.exit(1);
     }
 }

@@ -71,7 +71,6 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
             }
             return { success: true };
         } catch (error) {
-            logger.warn('Ollama connection test failed', error);
             // Check if model not found
             if (error instanceof Error) {
                 if (error.message.includes('not found') || error.message.includes('404')) {
