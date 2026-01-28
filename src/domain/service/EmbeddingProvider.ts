@@ -1,7 +1,12 @@
+export interface ConnectionResult {
+    success: boolean;
+    error?: 'connection_failed' | 'model_not_found';
+}
+
 export interface EmbeddingProvider {
     embed(text: string): Promise<number[]>;
     embedBatch(texts: string[]): Promise<number[][]>;
     getModelName(): string;
     getDimensions(): number;
-    testConnection(): Promise<boolean>;
+    testConnection(): Promise<ConnectionResult>;
 }

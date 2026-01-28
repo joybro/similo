@@ -107,11 +107,15 @@ async function initContext(): Promise<ServerContext> {
 
     // Probe the model to get actual dimensions
     logger.info(`Probing embedding model: ${config.ollama.model}`);
-    const connectionOk = await embeddingProvider.testConnection();
-    if (!connectionOk) {
+    const connectionResult = await embeddingProvider.testConnection();
+    if (!connectionResult.success) {
+        if (connectionResult.error === 'model_not_found') {
+            throw new Error(
+                `Model '${config.ollama.model}' not found. Run: ollama pull ${config.ollama.model}`
+            );
+        }
         throw new Error(
-            `Cannot connect to Ollama or model '${config.ollama.model}' not available. ` +
-            `Make sure Ollama is running and the model is pulled.`
+            `Cannot connect to Ollama. Make sure Ollama is running (ollama serve).`
         );
     }
     const actualDimensions = embeddingProvider.getDimensions();

@@ -58,7 +58,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
         return this.dimensions;
     }
 
-    async testConnection(): Promise<boolean> {
+    async testConnection(): Promise<{ success: boolean; error?: 'connection_failed' | 'model_not_found' }> {
         try {
             const response = await this.client.embeddings({
                 model: this.model,
@@ -69,10 +69,16 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
                 this.dimensions = response.embedding.length;
                 logger.debug(`Ollama connection test successful, dimensions=${this.dimensions}`);
             }
-            return true;
+            return { success: true };
         } catch (error) {
             logger.warn('Ollama connection test failed', error);
-            return false;
+            // Check if model not found
+            if (error instanceof Error) {
+                if (error.message.includes('not found') || error.message.includes('404')) {
+                    return { success: false, error: 'model_not_found' };
+                }
+            }
+            return { success: false, error: 'connection_failed' };
         }
     }
 
