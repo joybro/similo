@@ -207,6 +207,15 @@ export class SQLiteIndexRepository implements IndexRepository {
         return result.count;
     }
 
+    async getLatestIndexedAtByDirectory(dirPath: string): Promise<Date | null> {
+        const db = getDatabase();
+        const prefix = dirPath.endsWith('/') ? dirPath : `${dirPath}/`;
+        const result = db.prepare(`
+            SELECT MAX(indexed_at) as latest FROM index_entries WHERE path LIKE ? OR path = ?
+        `).get(`${prefix}%`, dirPath) as { latest: string | null };
+        return result.latest ? new Date(result.latest) : null;
+    }
+
     private mapRowToEntry(row: RawIndexEntry): IndexEntry {
         // embedding is stored as a Buffer, convert back to number[]
         const embeddingBuffer = row.embedding as Buffer;

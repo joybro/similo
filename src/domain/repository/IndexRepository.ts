@@ -10,4 +10,5 @@ export interface IndexRepository {
     findAll(): Promise<IndexEntry[]>;
     count(): Promise<number>;
     countByDirectory(dirPath: string): Promise<number>;
+    getLatestIndexedAtByDirectory(dirPath: string): Promise<Date | null>;
 }
