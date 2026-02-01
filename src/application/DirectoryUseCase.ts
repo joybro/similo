@@ -79,7 +79,20 @@ export class DirectoryUseCase {
     }
 
     async list(): Promise<Directory[]> {
-        return this.directoryRepo.findAll();
+        const directories = await this.directoryRepo.findAll();
+
+        // Get real-time file counts from index_entries table
+        const directoriesWithRealCounts = await Promise.all(
+            directories.map(async (dir) => {
+                const realFileCount = await this.indexRepo.countByDirectory(dir.path);
+                return {
+                    ...dir,
+                    fileCount: realFileCount
+                };
+            })
+        );
+
+        return directoriesWithRealCounts;
     }
 
     async get(dirPath: string): Promise<Directory | null> {
